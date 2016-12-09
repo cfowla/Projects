@@ -6,10 +6,27 @@ decimal places. Keep a limit to how far the program will go.
 # Start
 
 from _decimal import *
-import math
+from math import pi
+
 n = int(input("How many digits of pi?"))
-context = Context(n, rounding=None)
+context = Context(n+1, rounding=None)
 if n <= 100:
-    print(context.create_decimal_from_float(math.pi))
+    print(context.create_decimal_from_float(pi))
+
+# End
+
+''' Find e to the Nth Digit - Just like the previous problem, but with e instead of PI.
+Enter a number and have the program generate e up to that many decimal places.
+Keep a limit to how far the program will go. '''
+
+# Start
+
+from math import e
+from _decimal import *
+
+n = int(input("How many digits of e?"))
+context = Context(n+1, rounding=None)
+if n < 100:
+    print(context.create_decimal_from_float(e))
 
 # End
