@@ -1,7 +1,5 @@
-'''
-Find PI to the Nth Digit - Enter a number and have the program generate PI up to that many
-decimal places. Keep a limit to how far the program will go.
-'''
+''' Find PI to the Nth Digit - Enter a number and have the program generate PI up to that many
+decimal places. Keep a limit to how far the program will go. '''
 
 # Start
 
@@ -28,5 +26,22 @@ n = int(input("How many digits of e?"))
 context = Context(n+1, rounding=None)
 if n < 100:
     print(context.create_decimal_from_float(e))
+
+# End
+
+''' Fibonacci Sequence - Enter a number and have the program generate the Fibonacci
+sequence to that number or to the Nth number. '''
+
+# Start
+
+a, b = 1, 1
+n = 0
+i = int(input("How many iterations of the Fibonacci sequence?"))
+c = [a]
+while n < i:
+    a, b = b, a+b
+    n = n + 1
+    c.append(b)
+print(c)
 
 # End
