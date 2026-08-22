@@ -1,0 +1,29 @@
+{
+  "schema_version": "2",
+  "request_id": "4e7f72c8d6d96eaa616609c0",
+  "correlation_id": "276f0cc11ad1fb42fe17e0d2",
+  "url": "https://ora.ox.ac.uk/objects/uuid%3A9af00710-cc54-4186-8a3b-b0bd2f550541/files/s9c67wn16p",
+  "method": "GET",
+  "headers": {},
+  "timeout_seconds": 60,
+  "expected_media_type": "application/pdf",
+  "source_route": "repository",
+  "provenance_context": {
+    "host_observation_request_id": "f4fe1d18be3b0f2fa8051676",
+    "host_evidence_source": "https://ora.ox.ac.uk/objects/uuid:9af00710-cc54-4186-8a3b-b0bd2f550541",
+    "discovery_provenance": {
+      "method": "Oxford University Research Archive accepted-manuscript file",
+      "repository": "Oxford University Research Archive",
+      "record": "uuid:9af00710-cc54-4186-8a3b-b0bd2f550541",
+      "manuscript_version": "accepted manuscript"
+    },
+    "lawful_access_basis": "Oxford University Research Archive publicly serves the accepted manuscript; reuse remains subject to repository/publisher terms and no open reuse license is asserted",
+    "open_access": true,
+    "version": "acceptedVersion",
+    "license": null,
+    "artifact_format": "pdf",
+    "location_metadata": {}
+  },
+  "max_bytes": 134217728,
+  "created_at": "2026-08-22T01:18:44.139702Z"
+}
