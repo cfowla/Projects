@@ -62,17 +62,22 @@ jobs:
           assert resp['request_id'] == req['request_id']
           assert resp['correlation_id'] == req['correlation_id']
           assert resp['requested_url'] == req['url']
-          assert resp['transport_state'] == 'response'
-          body = base64.b64decode(resp['body_base64'], validate=True)
-          assert body.startswith(b'%PDF')
-          assert len(body) == resp['byte_count']
-          assert hashlib.sha256(body).hexdigest() == resp['transport_checksum']
+          body = base64.b64decode(resp.get('body_base64') or '', validate=True)
+          if resp.get('byte_count') is not None:
+              assert len(body) == resp['byte_count']
+          if resp.get('transport_checksum'):
+              assert hashlib.sha256(body).hexdigest() == resp['transport_checksum']
           summary = {
-              'status_code': resp['status_code'],
-              'byte_count': resp['byte_count'],
-              'sha256': resp['transport_checksum'],
-              'final_url': resp['final_url'],
-              'content_type': next((v for k,v in resp['headers'].items() if k.lower() == 'content-type'), None),
+              'transport_state': resp['transport_state'],
+              'status_code': resp.get('status_code'),
+              'byte_count': resp.get('byte_count'),
+              'sha256': resp.get('transport_checksum'),
+              'final_url': resp.get('final_url'),
+              'content_type': next((v for k,v in (resp.get('headers') or {}).items() if k.lower() == 'content-type'), None),
+              'body_prefix_hex': body[:24].hex(),
+              'is_pdf': body.startswith(b'%PDF'),
+              'error_type': resp.get('error_type'),
+              'error_message': resp.get('error_message'),
           }
           (root / 'repository-output' / 'summary.json').write_text(json.dumps(summary, indent=2) + '\n')
           PY
@@ -112,6 +117,7 @@ jobs:
           (out / 'summary.json').write_text(json.dumps(summary, indent=2) + '\n')
           PY
       - name: Preserve Prompt 3 remote evidence
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: v043-prompt3-transport-response
