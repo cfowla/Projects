@@ -13,7 +13,7 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@v4
-      - name: Execute transport-only request
+      - name: Execute transport-only PMC request
         shell: bash
         run: |
           set -euo pipefail
@@ -21,7 +21,7 @@ jobs:
           OUT="$ROOT/remote-proof-output"
           mkdir -p "$OUT"
           python "acquisition-runtime/v0.4.3-prompt2/transport_worker.py" "$ROOT/pmc_jats_request.json" "$OUT/transport_response.json"
-      - name: Verify transport envelope
+      - name: Verify PMC transport envelope
         shell: bash
         run: |
           set -euo pipefail
@@ -46,7 +46,42 @@ jobs:
           }
           (root / 'remote-proof-output' / 'summary.json').write_text(json.dumps(summary, indent=2) + '\n')
           PY
-      - name: Preserve transport response
+      - name: Execute raw Unpaywall host observation
+        shell: bash
+        run: |
+          set -euo pipefail
+          ROOT="acquisition-runtime/v0.4.3-prompt3"
+          OUT="$ROOT/unpaywall-host-output"
+          mkdir -p "$OUT"
+          python - <<'PY'
+          import json, pathlib
+          root = pathlib.Path('acquisition-runtime/v0.4.3-prompt3')
+          req = json.loads((root / 'unpaywall_host_request.json').read_text())
+          (root / 'unpaywall-host-output' / 'body.json').write_text(json.dumps(req['body']))
+          (root / 'unpaywall-host-output' / 'url.txt').write_text(req['url'])
+          PY
+          URL="$(cat "$OUT/url.txt")"
+          STATUS="$(curl --silent --show-error --max-time 30 -X POST "$URL" -H 'Content-Type: application/json' --data-binary "@$OUT/body.json" -D "$OUT/headers.txt" -o "$OUT/response.json" -w '%{http_code}')"
+          printf '%s\n' "$STATUS" > "$OUT/status.txt"
+          test "$STATUS" -ge 200 -a "$STATUS" -lt 300
+          python - <<'PY'
+          import hashlib, json, pathlib
+          root = pathlib.Path('acquisition-runtime/v0.4.3-prompt3')
+          out = root / 'unpaywall-host-output'
+          raw = (out / 'response.json').read_bytes()
+          doc = json.loads(raw)
+          results = doc.get('results') or {}
+          required = ['10.1089/dia.2018.0052', '10.1111/dom.12307']
+          assert all(doi in results for doi in required), results.keys()
+          summary = {
+              'status_code': int((out / 'status.txt').read_text().strip()),
+              'byte_count': len(raw),
+              'sha256': hashlib.sha256(raw).hexdigest(),
+              'returned_dois': sorted(results),
+          }
+          (out / 'summary.json').write_text(json.dumps(summary, indent=2) + '\n')
+          PY
+      - name: Preserve Prompt 3 remote evidence
         uses: actions/upload-artifact@v4
         with:
           name: v043-prompt3-transport-response
@@ -55,3 +90,8 @@ jobs:
           path: |
             acquisition-runtime/v0.4.3-prompt3/pmc_jats_request.json
             acquisition-runtime/v0.4.3-prompt3/remote-proof-output/*.json
+            acquisition-runtime/v0.4.3-prompt3/unpaywall_host_request.json
+            acquisition-runtime/v0.4.3-prompt3/unpaywall-host-output/response.json
+            acquisition-runtime/v0.4.3-prompt3/unpaywall-host-output/summary.json
+            acquisition-runtime/v0.4.3-prompt3/unpaywall-host-output/headers.txt
+            acquisition-runtime/v0.4.3-prompt3/unpaywall-host-output/status.txt
