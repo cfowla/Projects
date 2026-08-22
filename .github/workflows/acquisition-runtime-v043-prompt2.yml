@@ -1,0 +1,72 @@
+name: Acquisition Runtime v0.4.3 Prompt 2 transport proof
+
+on:
+  push:
+    branches:
+      - acquisition-runtime-v043-prompt2-proof
+  workflow_dispatch:
+
+jobs:
+  transport-proof:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Execute transport-only requests
+        shell: bash
+        run: |
+          set -euo pipefail
+          ROOT="acquisition-runtime/v0.4.3-prompt2"
+          OUT="$ROOT/remote-proof-output"
+          mkdir -p "$OUT"
+          python "$ROOT/transport_worker.py" "$ROOT/ordinary_pdf_request.json" "$OUT/ordinary_pdf_remote_response.json"
+          python "$ROOT/transport_worker.py" "$ROOT/pmc_jats_request.json" "$OUT/pmc_jats_remote_response.json"
+
+      - name: Verify low-level transport evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import base64, hashlib, json, pathlib, platform, sys
+          root = pathlib.Path('acquisition-runtime/v0.4.3-prompt2')
+          out = root / 'remote-proof-output'
+          expected_pdf_sha = '54465e3c056b86551d8c5d865b0685d01a5f4fa2c11bc705a479768b3efc63cb'
+          summary = {'python': sys.version, 'platform': platform.platform(), 'responses': {}}
+          for name in ('ordinary_pdf', 'pmc_jats'):
+              req = json.loads((root / f'{name}_request.json').read_text())
+              resp = json.loads((out / f'{name}_remote_response.json').read_text())
+              assert resp['request_id'] == req['request_id']
+              assert resp['correlation_id'] == req['correlation_id']
+              assert resp['requested_url'] == req['url']
+              assert resp['transport_state'] == 'response'
+              assert resp['status_code'] == 200
+              body = base64.b64decode(resp['body_base64'], validate=True)
+              digest = hashlib.sha256(body).hexdigest()
+              assert len(body) == resp['byte_count']
+              assert digest == resp['transport_checksum']
+              summary['responses'][name] = {
+                  'request_id': resp['request_id'],
+                  'correlation_id': resp['correlation_id'],
+                  'status_code': resp['status_code'],
+                  'byte_count': len(body),
+                  'sha256': digest,
+                  'final_url': resp['final_url'],
+                  'content_type': next((v for k, v in resp['headers'].items() if k.lower() == 'content-type'), None),
+                  'elapsed_ms': resp['elapsed_ms'],
+              }
+          assert summary['responses']['ordinary_pdf']['sha256'] == expected_pdf_sha
+          (out / 'remote_execution_summary.json').write_text(json.dumps(summary, indent=2) + '\n')
+          PY
+
+      - name: Preserve remote proof
+        uses: actions/upload-artifact@v4
+        with:
+          name: v043-prompt2-transport-proof
+          if-no-files-found: error
+          retention-days: 30
+          path: |
+            acquisition-runtime/v0.4.3-prompt2/ordinary_pdf_request.json
+            acquisition-runtime/v0.4.3-prompt2/pmc_jats_request.json
+            acquisition-runtime/v0.4.3-prompt2/remote-proof-output/*.json
