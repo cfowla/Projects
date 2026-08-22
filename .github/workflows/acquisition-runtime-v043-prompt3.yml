@@ -1,0 +1,57 @@
+name: Acquisition Runtime v0.4.3 Prompt 3 route proof
+
+on:
+  pull_request:
+    branches:
+      - master
+  workflow_dispatch:
+
+jobs:
+  transport-proof:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Execute transport-only request
+        shell: bash
+        run: |
+          set -euo pipefail
+          ROOT="acquisition-runtime/v0.4.3-prompt3"
+          OUT="$ROOT/remote-proof-output"
+          mkdir -p "$OUT"
+          python "acquisition-runtime/v0.4.3-prompt2/transport_worker.py" "$ROOT/pmc_jats_request.json" "$OUT/transport_response.json"
+      - name: Verify transport envelope
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import base64, hashlib, json, pathlib
+          root = pathlib.Path('acquisition-runtime/v0.4.3-prompt3')
+          req = json.loads((root / 'pmc_jats_request.json').read_text())
+          resp = json.loads((root / 'remote-proof-output' / 'transport_response.json').read_text())
+          assert resp['request_id'] == req['request_id']
+          assert resp['correlation_id'] == req['correlation_id']
+          assert resp['requested_url'] == req['url']
+          assert resp['transport_state'] == 'response'
+          body = base64.b64decode(resp['body_base64'], validate=True)
+          assert len(body) == resp['byte_count']
+          assert hashlib.sha256(body).hexdigest() == resp['transport_checksum']
+          summary = {
+              'status_code': resp['status_code'],
+              'byte_count': resp['byte_count'],
+              'sha256': resp['transport_checksum'],
+              'final_url': resp['final_url'],
+              'content_type': next((v for k,v in resp['headers'].items() if k.lower() == 'content-type'), None),
+          }
+          (root / 'remote-proof-output' / 'summary.json').write_text(json.dumps(summary, indent=2) + '\n')
+          PY
+      - name: Preserve transport response
+        uses: actions/upload-artifact@v4
+        with:
+          name: v043-prompt3-transport-response
+          if-no-files-found: error
+          retention-days: 30
+          path: |
+            acquisition-runtime/v0.4.3-prompt3/pmc_jats_request.json
+            acquisition-runtime/v0.4.3-prompt3/remote-proof-output/*.json
