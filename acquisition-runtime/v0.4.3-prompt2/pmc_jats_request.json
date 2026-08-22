@@ -1,0 +1,27 @@
+{
+  "schema_version": "2",
+  "request_id": "2b4bc78727691472cf8c4a54",
+  "correlation_id": "e796640bd22efe4713bb4850",
+  "url": "https://www.ebi.ac.uk/europepmc/webservices/rest/PMC3995050/fullTextXML",
+  "method": "GET",
+  "headers": {},
+  "timeout_seconds": 60,
+  "expected_media_type": "application/xml",
+  "source_route": "pmc",
+  "provenance_context": {
+    "host_observation_request_id": "5b41c4d08bdc42bdad07c216",
+    "host_evidence_source": "https://europepmc.org/RestfulWebService",
+    "discovery_provenance": {
+      "method": "Europe PMC documented fullTextXML endpoint for PMC OA full text",
+      "pmcid": "PMC3995050"
+    },
+    "lawful_access_basis": "Europe PMC/PMC open-access full-text XML service",
+    "open_access": true,
+    "version": "publishedVersion",
+    "license": "CC BY",
+    "artifact_format": "jats_xml",
+    "location_metadata": {}
+  },
+  "max_bytes": 134217728,
+  "created_at": "2026-08-22T00:34:01.911569Z"
+}
