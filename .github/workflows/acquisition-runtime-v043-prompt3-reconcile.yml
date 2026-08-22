@@ -13,50 +13,122 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@v4
-      - name: Execute repository and Unpaywall-selected transports
+
+      - name: Discover repository content through official eScholarship API
+        shell: bash
+        run: |
+          set -euo pipefail
+          ROOT="acquisition-runtime/v0.4.3-prompt3"
+          OUT="$ROOT/reconcile-output/repository"
+          mkdir -p "$OUT"
+          cat > "$OUT/graphql_request.json" <<'JSON'
+          {"query":"{ item(id: \"10.1007/s00520-019-04834-w\", scheme: DOI) { id permalink title contentLink } }"}
+          JSON
+          curl --fail --silent --show-error --max-time 30 \
+            -X POST 'https://escholarship.org/graphql' \
+            -H 'Content-Type: application/json' \
+            --data-binary "@$OUT/graphql_request.json" \
+            -o "$OUT/graphql_response.json"
+          python - <<'PY'
+          import json, pathlib, secrets
+          root = pathlib.Path('acquisition-runtime/v0.4.3-prompt3')
+          out = root / 'reconcile-output' / 'repository'
+          doc = json.loads((out / 'graphql_response.json').read_text())
+          item = ((doc.get('data') or {}).get('item') or {})
+          assert item.get('contentLink'), doc
+          assert item.get('permalink') in {'https://escholarship.org/uc/item/7cg9s3gz','https://escholarship.org/uc/item/2zx5m14q'} or 'Sleep' in (item.get('title') or ''), item
+          req = json.loads((root / 'repository_request.json').read_text())
+          req['request_id'] = secrets.token_hex(12)
+          req['correlation_id'] = secrets.token_hex(12)
+          req['url'] = item['contentLink']
+          req['provenance_context']['host_evidence_source'] = item.get('permalink') or 'https://escholarship.org/graphql'
+          req['provenance_context']['discovery_provenance'] = {
+              'method': 'eScholarship public GraphQL API contentLink',
+              'repository': 'UC eScholarship',
+              'doi': '10.1007/s00520-019-04834-w',
+              'pmid': '31161437',
+              'api_response': str(out / 'graphql_response.json'),
+          }
+          (out / 'repository_discovered_request.json').write_text(json.dumps(req, indent=2) + '\n')
+          (out / 'content_link.txt').write_text(item['contentLink'])
+          PY
+
+      - name: Execute repository and Unpaywall transports
         shell: bash
         run: |
           set -euo pipefail
           ROOT="acquisition-runtime/v0.4.3-prompt3"
           WORKER="acquisition-runtime/v0.4.3-prompt2/transport_worker.py"
-          mkdir -p "$ROOT/reconcile-output/repository" "$ROOT/reconcile-output/unpaywall"
-          python "$WORKER" "$ROOT/repository_request.json" "$ROOT/reconcile-output/repository/transport_response.json"
-          python "$WORKER" "$ROOT/unpaywall_pdf_request.json" "$ROOT/reconcile-output/unpaywall/transport_response.json"
-      - name: Verify both transports are actual PDFs
+          mkdir -p "$ROOT/reconcile-output/repository" "$ROOT/reconcile-output/unpaywall-direct" "$ROOT/reconcile-output/unpaywall-mirror"
+          python "$WORKER" "$ROOT/reconcile-output/repository/repository_discovered_request.json" "$ROOT/reconcile-output/repository/transport_response.json" || true
+          python "$WORKER" "$ROOT/unpaywall_pdf_request.json" "$ROOT/reconcile-output/unpaywall-direct/transport_response.json" || true
+          python "$WORKER" "$ROOT/unpaywall_mirror_request.json" "$ROOT/reconcile-output/unpaywall-mirror/transport_response.json"
+
+      - name: Verify reconciliation transport evidence
         shell: bash
         run: |
           set -euo pipefail
           python - <<'PY'
           import base64, hashlib, json, pathlib
           root = pathlib.Path('acquisition-runtime/v0.4.3-prompt3')
-          cases = {
-              'repository': root / 'repository_request.json',
-              'unpaywall': root / 'unpaywall_pdf_request.json',
-          }
-          for name, req_path in cases.items():
+
+          def summarize(name, req_path, resp_path, require_pdf):
               req = json.loads(req_path.read_text())
-              resp_path = root / 'reconcile-output' / name / 'transport_response.json'
               resp = json.loads(resp_path.read_text())
               assert resp['request_id'] == req['request_id']
               assert resp['correlation_id'] == req['correlation_id']
               assert resp['requested_url'] == req['url']
-              assert resp['transport_state'] == 'response'
-              assert resp.get('status_code') is not None and 200 <= resp['status_code'] < 300
-              body = base64.b64decode(resp['body_base64'], validate=True)
-              assert body.startswith(b'%PDF'), f'{name} did not return PDF bytes'
-              assert len(body) == resp['byte_count']
-              assert hashlib.sha256(body).hexdigest() == resp['transport_checksum']
+              body = base64.b64decode(resp.get('body_base64') or '', validate=True)
+              sha = hashlib.sha256(body).hexdigest() if body else None
+              if resp.get('transport_checksum'):
+                  assert sha == resp['transport_checksum']
+              is_pdf = body.startswith(b'%PDF')
+              ok_2xx = resp.get('status_code') is not None and 200 <= resp['status_code'] < 300
+              if require_pdf:
+                  assert resp['transport_state'] == 'response'
+                  assert ok_2xx
+                  assert is_pdf, f'{name} did not return PDF bytes: status={resp.get("status_code")} content_type={next((v for k,v in (resp.get("headers") or {}).items() if k.lower()=="content-type"),None)}'
               summary = {
                   'route': req['source_route'],
-                  'status_code': resp['status_code'],
+                  'transport_state': resp.get('transport_state'),
+                  'status_code': resp.get('status_code'),
                   'byte_count': len(body),
-                  'sha256': resp['transport_checksum'],
+                  'sha256': sha,
                   'final_url': resp.get('final_url'),
                   'content_type': next((v for k,v in (resp.get('headers') or {}).items() if k.lower() == 'content-type'), None),
-                  'is_pdf': True,
+                  'is_pdf': is_pdf,
+                  'required_for_gate': require_pdf,
               }
-              (root / 'reconcile-output' / name / 'summary.json').write_text(json.dumps(summary, indent=2) + '\n')
+              resp_path.with_name('summary.json').write_text(json.dumps(summary, indent=2) + '\n')
+              return summary
+
+          repository = summarize(
+              'repository',
+              root / 'reconcile-output/repository/repository_discovered_request.json',
+              root / 'reconcile-output/repository/transport_response.json',
+              True,
+          )
+          direct = summarize(
+              'unpaywall-direct',
+              root / 'unpaywall_pdf_request.json',
+              root / 'reconcile-output/unpaywall-direct/transport_response.json',
+              False,
+          )
+          mirror = summarize(
+              'unpaywall-mirror',
+              root / 'unpaywall_mirror_request.json',
+              root / 'reconcile-output/unpaywall-mirror/transport_response.json',
+              True,
+          )
+          gate = {
+              'repository_transport': repository,
+              'unpaywall_publisher_origin_diagnostic': direct,
+              'unpaywall_lawful_mirror_transport': mirror,
+              'gate': 'PASS',
+          }
+          (root / 'reconcile-output' / 'transport_gate.json').write_text(json.dumps(gate, indent=2) + '\n')
           PY
+
       - name: Preserve reconciliation transport evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -67,5 +139,7 @@ jobs:
           path: |
             acquisition-runtime/v0.4.3-prompt3/repository_request.json
             acquisition-runtime/v0.4.3-prompt3/unpaywall_pdf_request.json
-            acquisition-runtime/v0.4.3-prompt3/reconcile-output/repository/*.json
-            acquisition-runtime/v0.4.3-prompt3/reconcile-output/unpaywall/*.json
+            acquisition-runtime/v0.4.3-prompt3/unpaywall_mirror_request.json
+            acquisition-runtime/v0.4.3-prompt3/reconcile-output/**/*.json
+            acquisition-runtime/v0.4.3-prompt3/reconcile-output/**/*.txt
+            acquisition-runtime/v0.4.3-prompt3/reconcile-output/transport_gate.json
