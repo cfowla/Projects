@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - acquisition-runtime-v043-prompt2-proof
+  pull_request:
+    branches:
+      - master
   workflow_dispatch:
 
 jobs:
@@ -28,7 +31,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python - <<'PY'
+          python - <<'PY2'
           import base64, hashlib, json, pathlib, platform, sys
           root = pathlib.Path('acquisition-runtime/v0.4.3-prompt2')
           out = root / 'remote-proof-output'
@@ -58,7 +61,7 @@ jobs:
               }
           assert summary['responses']['ordinary_pdf']['sha256'] == expected_pdf_sha
           (out / 'remote_execution_summary.json').write_text(json.dumps(summary, indent=2) + '\n')
-          PY
+          PY2
 
       - name: Preserve remote proof
         uses: actions/upload-artifact@v4
