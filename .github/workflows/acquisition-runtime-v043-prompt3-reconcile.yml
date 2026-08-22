@@ -14,45 +14,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Discover repository content through official eScholarship API
-        shell: bash
-        run: |
-          set -euo pipefail
-          ROOT="acquisition-runtime/v0.4.3-prompt3"
-          OUT="$ROOT/reconcile-output/repository"
-          mkdir -p "$OUT"
-          cat > "$OUT/graphql_request.json" <<'JSON'
-          {"query":"{ item(id: \"10.1007/s00520-019-04834-w\", scheme: DOI) { id permalink title contentLink } }"}
-          JSON
-          curl --fail --silent --show-error --max-time 30 \
-            -X POST 'https://escholarship.org/graphql' \
-            -H 'Content-Type: application/json' \
-            --data-binary "@$OUT/graphql_request.json" \
-            -o "$OUT/graphql_response.json"
-          python - <<'PY'
-          import json, pathlib, secrets
-          root = pathlib.Path('acquisition-runtime/v0.4.3-prompt3')
-          out = root / 'reconcile-output' / 'repository'
-          doc = json.loads((out / 'graphql_response.json').read_text())
-          item = ((doc.get('data') or {}).get('item') or {})
-          assert item.get('contentLink'), doc
-          assert item.get('permalink') in {'https://escholarship.org/uc/item/7cg9s3gz','https://escholarship.org/uc/item/2zx5m14q'} or 'Sleep' in (item.get('title') or ''), item
-          req = json.loads((root / 'repository_request.json').read_text())
-          req['request_id'] = secrets.token_hex(12)
-          req['correlation_id'] = secrets.token_hex(12)
-          req['url'] = item['contentLink']
-          req['provenance_context']['host_evidence_source'] = item.get('permalink') or 'https://escholarship.org/graphql'
-          req['provenance_context']['discovery_provenance'] = {
-              'method': 'eScholarship public GraphQL API contentLink',
-              'repository': 'UC eScholarship',
-              'doi': '10.1007/s00520-019-04834-w',
-              'pmid': '31161437',
-              'api_response': str(out / 'graphql_response.json'),
-          }
-          (out / 'repository_discovered_request.json').write_text(json.dumps(req, indent=2) + '\n')
-          (out / 'content_link.txt').write_text(item['contentLink'])
-          PY
-
       - name: Execute repository and Unpaywall transports
         shell: bash
         run: |
@@ -60,7 +21,7 @@ jobs:
           ROOT="acquisition-runtime/v0.4.3-prompt3"
           WORKER="acquisition-runtime/v0.4.3-prompt2/transport_worker.py"
           mkdir -p "$ROOT/reconcile-output/repository" "$ROOT/reconcile-output/unpaywall-direct" "$ROOT/reconcile-output/unpaywall-mirror"
-          python "$WORKER" "$ROOT/reconcile-output/repository/repository_discovered_request.json" "$ROOT/reconcile-output/repository/transport_response.json" || true
+          python "$WORKER" "$ROOT/repository_soton_request.json" "$ROOT/reconcile-output/repository/transport_response.json"
           python "$WORKER" "$ROOT/unpaywall_pdf_request.json" "$ROOT/reconcile-output/unpaywall-direct/transport_response.json" || true
           python "$WORKER" "$ROOT/unpaywall_mirror_request.json" "$ROOT/reconcile-output/unpaywall-mirror/transport_response.json"
 
@@ -102,31 +63,17 @@ jobs:
               resp_path.with_name('summary.json').write_text(json.dumps(summary, indent=2) + '\n')
               return summary
 
-          repository = summarize(
-              'repository',
-              root / 'reconcile-output/repository/repository_discovered_request.json',
-              root / 'reconcile-output/repository/transport_response.json',
-              True,
-          )
-          direct = summarize(
-              'unpaywall-direct',
-              root / 'unpaywall_pdf_request.json',
-              root / 'reconcile-output/unpaywall-direct/transport_response.json',
-              False,
-          )
-          mirror = summarize(
-              'unpaywall-mirror',
-              root / 'unpaywall_mirror_request.json',
-              root / 'reconcile-output/unpaywall-mirror/transport_response.json',
-              True,
-          )
+          repository = summarize('repository', root/'repository_soton_request.json', root/'reconcile-output/repository/transport_response.json', True)
+          direct = summarize('unpaywall-direct', root/'unpaywall_pdf_request.json', root/'reconcile-output/unpaywall-direct/transport_response.json', False)
+          mirror = summarize('unpaywall-mirror', root/'unpaywall_mirror_request.json', root/'reconcile-output/unpaywall-mirror/transport_response.json', True)
           gate = {
               'repository_transport': repository,
               'unpaywall_publisher_origin_diagnostic': direct,
               'unpaywall_lawful_mirror_transport': mirror,
               'gate': 'PASS',
+              'note': 'Workflow PASS means transport proof only; route promotion still requires production runtime validation, hashing, manifest, receipt, journal, and terminal-state assignment.'
           }
-          (root / 'reconcile-output' / 'transport_gate.json').write_text(json.dumps(gate, indent=2) + '\n')
+          (root/'reconcile-output/transport_gate.json').write_text(json.dumps(gate, indent=2) + '\n')
           PY
 
       - name: Preserve reconciliation transport evidence
@@ -137,9 +84,8 @@ jobs:
           if-no-files-found: error
           retention-days: 30
           path: |
-            acquisition-runtime/v0.4.3-prompt3/repository_request.json
+            acquisition-runtime/v0.4.3-prompt3/repository_soton_request.json
             acquisition-runtime/v0.4.3-prompt3/unpaywall_pdf_request.json
             acquisition-runtime/v0.4.3-prompt3/unpaywall_mirror_request.json
             acquisition-runtime/v0.4.3-prompt3/reconcile-output/**/*.json
-            acquisition-runtime/v0.4.3-prompt3/reconcile-output/**/*.txt
             acquisition-runtime/v0.4.3-prompt3/reconcile-output/transport_gate.json
