@@ -1,0 +1,71 @@
+name: Acquisition Runtime v0.4.3 Prompt 3 reconciliation proof
+
+on:
+  pull_request:
+    branches:
+      - master
+  workflow_dispatch:
+
+jobs:
+  reconcile-route-transport:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Execute repository and Unpaywall-selected transports
+        shell: bash
+        run: |
+          set -euo pipefail
+          ROOT="acquisition-runtime/v0.4.3-prompt3"
+          WORKER="acquisition-runtime/v0.4.3-prompt2/transport_worker.py"
+          mkdir -p "$ROOT/reconcile-output/repository" "$ROOT/reconcile-output/unpaywall"
+          python "$WORKER" "$ROOT/repository_request.json" "$ROOT/reconcile-output/repository/transport_response.json"
+          python "$WORKER" "$ROOT/unpaywall_pdf_request.json" "$ROOT/reconcile-output/unpaywall/transport_response.json"
+      - name: Verify both transports are actual PDFs
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import base64, hashlib, json, pathlib
+          root = pathlib.Path('acquisition-runtime/v0.4.3-prompt3')
+          cases = {
+              'repository': root / 'repository_request.json',
+              'unpaywall': root / 'unpaywall_pdf_request.json',
+          }
+          for name, req_path in cases.items():
+              req = json.loads(req_path.read_text())
+              resp_path = root / 'reconcile-output' / name / 'transport_response.json'
+              resp = json.loads(resp_path.read_text())
+              assert resp['request_id'] == req['request_id']
+              assert resp['correlation_id'] == req['correlation_id']
+              assert resp['requested_url'] == req['url']
+              assert resp['transport_state'] == 'response'
+              assert resp.get('status_code') is not None and 200 <= resp['status_code'] < 300
+              body = base64.b64decode(resp['body_base64'], validate=True)
+              assert body.startswith(b'%PDF'), f'{name} did not return PDF bytes'
+              assert len(body) == resp['byte_count']
+              assert hashlib.sha256(body).hexdigest() == resp['transport_checksum']
+              summary = {
+                  'route': req['source_route'],
+                  'status_code': resp['status_code'],
+                  'byte_count': len(body),
+                  'sha256': resp['transport_checksum'],
+                  'final_url': resp.get('final_url'),
+                  'content_type': next((v for k,v in (resp.get('headers') or {}).items() if k.lower() == 'content-type'), None),
+                  'is_pdf': True,
+              }
+              (root / 'reconcile-output' / name / 'summary.json').write_text(json.dumps(summary, indent=2) + '\n')
+          PY
+      - name: Preserve reconciliation transport evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v043-prompt3-reconciliation-transport
+          if-no-files-found: error
+          retention-days: 30
+          path: |
+            acquisition-runtime/v0.4.3-prompt3/repository_request.json
+            acquisition-runtime/v0.4.3-prompt3/unpaywall_pdf_request.json
+            acquisition-runtime/v0.4.3-prompt3/reconcile-output/repository/*.json
+            acquisition-runtime/v0.4.3-prompt3/reconcile-output/unpaywall/*.json
