@@ -1,0 +1,103 @@
+name: Acquisition Runtime Prompt 4 one-request transport
+
+on:
+  pull_request:
+    branches:
+      - master
+    paths:
+      - acquisition-runtime/v0.4.3-prompt3/prompt4_transport_request.json
+  workflow_dispatch:
+
+jobs:
+  transport-one:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Execute exactly one raw transport request
+        shell: bash
+        run: |
+          set -euo pipefail
+          REQ="acquisition-runtime/v0.4.3-prompt3/prompt4_transport_request.json"
+          OUT="acquisition-runtime/v0.4.3-prompt3/prompt4-transport-output"
+          mkdir -p "$OUT"
+          python - <<'PY'
+          import json, pathlib
+          req_path = pathlib.Path('acquisition-runtime/v0.4.3-prompt3/prompt4_transport_request.json')
+          out = pathlib.Path('acquisition-runtime/v0.4.3-prompt3/prompt4-transport-output')
+          req = json.loads(req_path.read_text())
+          assert isinstance(req.get('url'), str) and req['url'].startswith(('http://','https://'))
+          method = str(req.get('method') or 'GET').upper()
+          assert method in {'GET','HEAD','POST'}
+          (out/'url.txt').write_text(req['url'])
+          (out/'method.txt').write_text(method)
+          (out/'headers.json').write_text(json.dumps(req.get('headers') or {}))
+          body = req.get('body_text')
+          if body is not None:
+              (out/'body.bin').write_bytes(str(body).encode('utf-8'))
+          PY
+          URL="$(cat "$OUT/url.txt")"
+          METHOD="$(cat "$OUT/method.txt")"
+          mapfile -t HEADER_ARGS < <(python - <<'PY'
+          import json, pathlib
+          h = json.loads(pathlib.Path('acquisition-runtime/v0.4.3-prompt3/prompt4-transport-output/headers.json').read_text())
+          for k,v in h.items():
+              print('-H')
+              print(f'{k}: {v}')
+          PY
+          )
+          CURL_ARGS=(--silent --show-error --location --max-time 120 --request "$METHOD" --dump-header "$OUT/response_headers.txt" --output "$OUT/payload.bin" --write-out '%{http_code}')
+          if [ ${#HEADER_ARGS[@]} -gt 0 ]; then CURL_ARGS+=("${HEADER_ARGS[@]}"); fi
+          if [ -f "$OUT/body.bin" ]; then CURL_ARGS+=(--data-binary "@$OUT/body.bin"); fi
+          STATUS="$(curl "${CURL_ARGS[@]}" "$URL")"
+          printf '%s\n' "$STATUS" > "$OUT/status.txt"
+
+      - name: Build transport response evidence
+        if: always()
+        shell: bash
+        run: |
+          python - <<'PY'
+          import hashlib, json, pathlib, re
+          req_path = pathlib.Path('acquisition-runtime/v0.4.3-prompt3/prompt4_transport_request.json')
+          out = pathlib.Path('acquisition-runtime/v0.4.3-prompt3/prompt4-transport-output')
+          req = json.loads(req_path.read_text())
+          body = (out/'payload.bin').read_bytes() if (out/'payload.bin').exists() else b''
+          status_text = (out/'status.txt').read_text().strip() if (out/'status.txt').exists() else ''
+          status = int(status_text) if status_text.isdigit() else None
+          raw_headers = (out/'response_headers.txt').read_text(errors='replace') if (out/'response_headers.txt').exists() else ''
+          blocks = [b for b in re.split(r'\r?\n\r?\n', raw_headers) if b.strip()]
+          last = blocks[-1] if blocks else ''
+          headers = {}
+          for line in last.splitlines()[1:]:
+              if ':' in line:
+                  k,v = line.split(':',1)
+                  headers[k.strip()] = v.strip()
+          content_type = next((v for k,v in headers.items() if k.lower()=='content-type'), None)
+          response = {
+              'schema_version': '1',
+              'request_id': req.get('request_id'),
+              'requested_url': req.get('url'),
+              'method': req.get('method','GET'),
+              'status_code': status,
+              'headers': headers,
+              'content_type': content_type,
+              'byte_count': len(body),
+              'sha256': hashlib.sha256(body).hexdigest(),
+              'is_pdf': body.startswith(b'%PDF'),
+              'purpose': req.get('purpose'),
+          }
+          (out/'transport_summary.json').write_text(json.dumps(response, indent=2) + '\n')
+          PY
+
+      - name: Preserve one-request transport evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: prompt4-one-request-transport
+          if-no-files-found: error
+          retention-days: 30
+          path: |
+            acquisition-runtime/v0.4.3-prompt3/prompt4_transport_request.json
+            acquisition-runtime/v0.4.3-prompt3/prompt4-transport-output/*
