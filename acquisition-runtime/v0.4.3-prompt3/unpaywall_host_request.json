@@ -21,6 +21,7 @@
   ]},
   "provenance": {
     "product": "Unpaywall Simple Query Tool",
-    "purpose": "Prompt 4 cohort screening only; production Python will decide route policy after the cohort is frozen"
+    "purpose": "Prompt 4 pre-freeze cohort screening only; production Python will decide route policy after the cohort is frozen",
+    "screen_revision": 2
   }
 }
