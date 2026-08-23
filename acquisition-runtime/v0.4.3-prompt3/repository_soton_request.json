@@ -1,0 +1,36 @@
+{
+  "schema_version": "2",
+  "request_id": "90f3f57dff1dc1dd665da3d7",
+  "correlation_id": "cfd89973ffd7890ed24727b1",
+  "url": "https://eprints.soton.ac.uk/195677/1/Debriefing_20to_20placebo_20allocation_postprint.pdf",
+  "method": "GET",
+  "headers": {},
+  "timeout_seconds": 60,
+  "expected_media_type": "application/pdf",
+  "source_route": "repository",
+  "provenance_context": {
+    "host_observation_request_id": "e09ab93aea424cb0ff9f4cf7",
+    "host_evidence_source": "https://eprints.soton.ac.uk/195677/",
+    "discovery_provenance": {
+      "method": "University of Southampton ePrints accepted-manuscript record independently reverified 2026-08-23",
+      "repository": "ePrints Soton",
+      "eprint_id": "195677",
+      "pmid": "22673094",
+      "doi": "10.1177/1049732312448544",
+      "title": "Participants' experiences of being debriefed to placebo allocation in a clinical trial",
+      "repository_record": "https://eprints.soton.ac.uk/195677/",
+      "phase": "Prompt 1 Phase C independent reproduction"
+    },
+    "lawful_access_basis": "University of Southampton institutional repository publicly serves the author accepted manuscript",
+    "open_access": true,
+    "version": "acceptedVersion",
+    "license": null,
+    "artifact_format": "pdf",
+    "location_metadata": {
+      "identity_in_pdf": "PDF first page states full citation, PMID 22673094, DOI 10.1177/1049732312448544, and Author Accepted Manuscript status",
+      "accepted_manuscript_evidence_url": "https://eprints.soton.ac.uk/195677/1/Debriefing_20to_20placebo_20allocation_postprint.pdf"
+    }
+  },
+  "max_bytes": 134217728,
+  "created_at": "2026-08-23T06:36:41.141533Z"
+}
