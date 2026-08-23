@@ -1,8 +1,7 @@
 {
-  "request_id": "screen-unpaywall-26387632",
-  "url": "https://unpaywall-simple-query-tool-c76bcdcacd9a.herokuapp.com/v2/dois",
-  "method": "POST",
-  "headers": {"Content-Type": "application/json"},
-  "body_text": "{\"dois\":[\"10.1016/j.clim.2015.09.006\"]}",
-  "purpose": "Pre-freeze one-DOI Unpaywall route-reachability screening for PMID 26387632"
+  "request_id": "screen-publisher-38426407",
+  "url": "https://wires.onlinelibrary.wiley.com/doi/pdf/10.1002/wnan.1943",
+  "method": "GET",
+  "headers": {"Accept": "application/pdf"},
+  "purpose": "Pre-freeze publisher-PDF transport screen for PMID 38426407"
 }
