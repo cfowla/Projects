@@ -1,135 +1,59 @@
-name: Acquisition Runtime v0.4.3 Prompt 3 route proof
+name: Acquisition Runtime v0.4.3 Prompt 4 cohort screening
 
 on:
-  pull_request:
+  push:
     branches:
-      - master
+      - acquisition-runtime-v043-prompt4-regression
   workflow_dispatch:
 
 jobs:
-  transport-proof:
+  unpaywall-screen:
     runs-on: ubuntu-latest
     permissions:
       contents: read
     steps:
       - uses: actions/checkout@v4
-      - name: Execute transport-only PMC request
+      - name: Execute raw Unpaywall cohort screening observation
         shell: bash
         run: |
           set -euo pipefail
           ROOT="acquisition-runtime/v0.4.3-prompt3"
-          OUT="$ROOT/remote-proof-output"
-          mkdir -p "$OUT"
-          python "acquisition-runtime/v0.4.3-prompt2/transport_worker.py" "$ROOT/pmc_jats_request.json" "$OUT/transport_response.json"
-      - name: Verify PMC transport envelope
-        shell: bash
-        run: |
-          set -euo pipefail
-          python - <<'PY'
-          import base64, hashlib, json, pathlib
-          root = pathlib.Path('acquisition-runtime/v0.4.3-prompt3')
-          req = json.loads((root / 'pmc_jats_request.json').read_text())
-          resp = json.loads((root / 'remote-proof-output' / 'transport_response.json').read_text())
-          assert resp['request_id'] == req['request_id']
-          assert resp['correlation_id'] == req['correlation_id']
-          assert resp['requested_url'] == req['url']
-          assert resp['transport_state'] == 'response'
-          body = base64.b64decode(resp['body_base64'], validate=True)
-          assert len(body) == resp['byte_count']
-          assert hashlib.sha256(body).hexdigest() == resp['transport_checksum']
-          summary = {
-              'status_code': resp['status_code'],
-              'byte_count': resp['byte_count'],
-              'sha256': resp['transport_checksum'],
-              'final_url': resp['final_url'],
-              'content_type': next((v for k,v in resp['headers'].items() if k.lower() == 'content-type'), None),
-          }
-          (root / 'remote-proof-output' / 'summary.json').write_text(json.dumps(summary, indent=2) + '\n')
-          PY
-      - name: Execute repository accepted-manuscript transport request
-        shell: bash
-        run: |
-          set -euo pipefail
-          ROOT="acquisition-runtime/v0.4.3-prompt3"
-          OUT="$ROOT/repository-output"
-          mkdir -p "$OUT"
-          python "acquisition-runtime/v0.4.3-prompt2/transport_worker.py" "$ROOT/repository_request.json" "$OUT/transport_response.json"
-          python - <<'PY'
-          import base64, hashlib, json, pathlib
-          root = pathlib.Path('acquisition-runtime/v0.4.3-prompt3')
-          req = json.loads((root / 'repository_request.json').read_text())
-          resp = json.loads((root / 'repository-output' / 'transport_response.json').read_text())
-          assert resp['request_id'] == req['request_id']
-          assert resp['correlation_id'] == req['correlation_id']
-          assert resp['requested_url'] == req['url']
-          body = base64.b64decode(resp.get('body_base64') or '', validate=True)
-          if resp.get('byte_count') is not None:
-              assert len(body) == resp['byte_count']
-          if resp.get('transport_checksum'):
-              assert hashlib.sha256(body).hexdigest() == resp['transport_checksum']
-          summary = {
-              'transport_state': resp['transport_state'],
-              'status_code': resp.get('status_code'),
-              'byte_count': resp.get('byte_count'),
-              'sha256': resp.get('transport_checksum'),
-              'final_url': resp.get('final_url'),
-              'content_type': next((v for k,v in (resp.get('headers') or {}).items() if k.lower() == 'content-type'), None),
-              'body_prefix_hex': body[:24].hex(),
-              'is_pdf': body.startswith(b'%PDF'),
-              'error_type': resp.get('error_type'),
-              'error_message': resp.get('error_message'),
-          }
-          (root / 'repository-output' / 'summary.json').write_text(json.dumps(summary, indent=2) + '\n')
-          PY
-      - name: Execute raw Unpaywall host observation
-        shell: bash
-        run: |
-          set -euo pipefail
-          ROOT="acquisition-runtime/v0.4.3-prompt3"
-          OUT="$ROOT/unpaywall-host-output"
+          OUT="$ROOT/prompt4-unpaywall-screen"
           mkdir -p "$OUT"
           python - <<'PY'
           import json, pathlib
           root = pathlib.Path('acquisition-runtime/v0.4.3-prompt3')
           req = json.loads((root / 'unpaywall_host_request.json').read_text())
-          (root / 'unpaywall-host-output' / 'body.json').write_text(json.dumps(req['body']))
-          (root / 'unpaywall-host-output' / 'url.txt').write_text(req['url'])
+          (root / 'prompt4-unpaywall-screen' / 'body.json').write_text(json.dumps(req['body']))
+          (root / 'prompt4-unpaywall-screen' / 'url.txt').write_text(req['url'])
           PY
           URL="$(cat "$OUT/url.txt")"
-          STATUS="$(curl --silent --show-error --max-time 30 -X POST "$URL" -H 'Content-Type: application/json' --data-binary "@$OUT/body.json" -D "$OUT/headers.txt" -o "$OUT/response.json" -w '%{http_code}')"
+          STATUS="$(curl --silent --show-error --max-time 60 -X POST "$URL" -H 'Content-Type: application/json' --data-binary "@$OUT/body.json" -D "$OUT/headers.txt" -o "$OUT/response.json" -w '%{http_code}')"
           printf '%s\n' "$STATUS" > "$OUT/status.txt"
           test "$STATUS" -ge 200 -a "$STATUS" -lt 300
           python - <<'PY'
           import hashlib, json, pathlib
           root = pathlib.Path('acquisition-runtime/v0.4.3-prompt3')
-          out = root / 'unpaywall-host-output'
+          out = root / 'prompt4-unpaywall-screen'
           raw = (out / 'response.json').read_bytes()
           doc = json.loads(raw)
           results = doc.get('results') or {}
-          required = ['10.1089/dia.2018.0052', '10.1111/dom.12307']
-          assert all(doi in results for doi in required), results.keys()
           summary = {
               'status_code': int((out / 'status.txt').read_text().strip()),
               'byte_count': len(raw),
               'sha256': hashlib.sha256(raw).hexdigest(),
               'returned_dois': sorted(results),
+              'result_count': len(results),
           }
           (out / 'summary.json').write_text(json.dumps(summary, indent=2) + '\n')
           PY
-      - name: Preserve Prompt 3 remote evidence
+      - name: Preserve cohort screening evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: v043-prompt3-transport-response
+          name: v043-prompt4-unpaywall-screen
           if-no-files-found: error
           retention-days: 30
           path: |
-            acquisition-runtime/v0.4.3-prompt3/pmc_jats_request.json
-            acquisition-runtime/v0.4.3-prompt3/remote-proof-output/*.json
-            acquisition-runtime/v0.4.3-prompt3/repository_request.json
-            acquisition-runtime/v0.4.3-prompt3/repository-output/*.json
             acquisition-runtime/v0.4.3-prompt3/unpaywall_host_request.json
-            acquisition-runtime/v0.4.3-prompt3/unpaywall-host-output/response.json
-            acquisition-runtime/v0.4.3-prompt3/unpaywall-host-output/summary.json
-            acquisition-runtime/v0.4.3-prompt3/unpaywall-host-output/headers.txt
-            acquisition-runtime/v0.4.3-prompt3/unpaywall-host-output/status.txt
+            acquisition-runtime/v0.4.3-prompt3/prompt4-unpaywall-screen/*
