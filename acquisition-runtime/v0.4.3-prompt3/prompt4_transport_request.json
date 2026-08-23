@@ -1,8 +1,8 @@
 {
-  "request_id": "screen-unpaywall-27444043",
+  "request_id": "screen-unpaywall-29384832",
   "url": "https://unpaywall-simple-query-tool-c76bcdcacd9a.herokuapp.com/v2/dois",
   "method": "POST",
   "headers": {"Content-Type": "application/json"},
-  "body_text": "{\"dois\":[\"10.1016/j.clim.2016.07.017\"]}",
-  "purpose": "Pre-freeze one-DOI Unpaywall route-reachability screening for PMID 27444043"
+  "body_text": "{\"dois\":[\"10.1097/MNM.0000000000000797\"]}",
+  "purpose": "Pre-freeze one-DOI Unpaywall route-reachability screening for PMID 29384832"
 }
