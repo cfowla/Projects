@@ -1,7 +1,8 @@
 {
-  "request_id": "screen-publisher-42406014",
-  "url": "https://reference-global.com/pdf/10.2478/prilozi-2026-0014",
-  "method": "GET",
-  "headers": {"Accept": "application/pdf"},
-  "purpose": "Pre-freeze publisher-PDF transport screen for PMID 42406014"
+  "request_id": "screen-unpaywall-24766495",
+  "url": "https://unpaywall-simple-query-tool-c76bcdcacd9a.herokuapp.com/v2/dois",
+  "method": "POST",
+  "headers": {"Content-Type": "application/json"},
+  "body_text": "{\"dois\":[\"10.1111/dom.12307\"]}",
+  "purpose": "Pre-freeze one-DOI Unpaywall negative observation for PMID 24766495"
 }
