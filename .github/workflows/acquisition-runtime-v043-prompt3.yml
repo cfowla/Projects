@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - acquisition-runtime-v043-prompt4-regression
+  pull_request:
+    branches:
+      - master
   workflow_dispatch:
 
 jobs:
