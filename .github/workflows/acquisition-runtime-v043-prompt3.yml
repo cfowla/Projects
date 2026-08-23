@@ -1,0 +1,62 @@
+name: Acquisition Runtime v0.4.3 Prompt 4 cohort screening
+
+on:
+  push:
+    branches:
+      - acquisition-runtime-v043-prompt4-regression
+  pull_request:
+    branches:
+      - master
+  workflow_dispatch:
+
+jobs:
+  unpaywall-screen:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Execute raw Unpaywall cohort screening observation
+        shell: bash
+        run: |
+          set -euo pipefail
+          ROOT="acquisition-runtime/v0.4.3-prompt3"
+          OUT="$ROOT/prompt4-unpaywall-screen"
+          mkdir -p "$OUT"
+          python - <<'PY'
+          import json, pathlib
+          root = pathlib.Path('acquisition-runtime/v0.4.3-prompt3')
+          req = json.loads((root / 'unpaywall_host_request.json').read_text())
+          (root / 'prompt4-unpaywall-screen' / 'body.json').write_text(json.dumps(req['body']))
+          (root / 'prompt4-unpaywall-screen' / 'url.txt').write_text(req['url'])
+          PY
+          URL="$(cat "$OUT/url.txt")"
+          STATUS="$(curl --silent --show-error --max-time 60 -X POST "$URL" -H 'Content-Type: application/json' --data-binary "@$OUT/body.json" -D "$OUT/headers.txt" -o "$OUT/response.json" -w '%{http_code}')"
+          printf '%s\n' "$STATUS" > "$OUT/status.txt"
+          test "$STATUS" -ge 200 -a "$STATUS" -lt 300
+          python - <<'PY'
+          import hashlib, json, pathlib
+          root = pathlib.Path('acquisition-runtime/v0.4.3-prompt3')
+          out = root / 'prompt4-unpaywall-screen'
+          raw = (out / 'response.json').read_bytes()
+          doc = json.loads(raw)
+          results = doc.get('results') or {}
+          summary = {
+              'status_code': int((out / 'status.txt').read_text().strip()),
+              'byte_count': len(raw),
+              'sha256': hashlib.sha256(raw).hexdigest(),
+              'returned_dois': sorted(results),
+              'result_count': len(results),
+          }
+          (out / 'summary.json').write_text(json.dumps(summary, indent=2) + '\n')
+          PY
+      - name: Preserve cohort screening evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v043-prompt4-unpaywall-screen
+          if-no-files-found: error
+          retention-days: 30
+          path: |
+            acquisition-runtime/v0.4.3-prompt3/unpaywall_host_request.json
+            acquisition-runtime/v0.4.3-prompt3/prompt4-unpaywall-screen/*

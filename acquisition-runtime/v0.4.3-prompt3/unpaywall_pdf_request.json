@@ -1,0 +1,32 @@
+{
+  "schema_version": "2",
+  "request_id": "79e44da73041cdffc2bfd441",
+  "correlation_id": "66734cf004c1a17113701ec9",
+  "url": "https://www.liebertpub.com/doi/pdf/10.1089/dia.2018.0052",
+  "method": "GET",
+  "headers": {},
+  "timeout_seconds": 60,
+  "expected_media_type": "application/pdf",
+  "source_route": "unpaywall",
+  "provenance_context": {
+    "host_observation_request_id": "reconcile-unpaywall-raw-observation",
+    "host_evidence_source": "preserved GitHub Actions Unpaywall raw observation sha256 0fcf6f1fa1f2960c81b312584c1fa1b1f77fed9dd7d92ee386d0abb9f38e340a",
+    "discovery_provenance": {
+      "method": "Unpaywall DOI record; Python-selected publishedVersion publisher PDF",
+      "doi": "10.1089/dia.2018.0052",
+      "oa_status": "hybrid",
+      "license": "cc-by",
+      "host_type": "publisher"
+    },
+    "lawful_access_basis": "Unpaywall-reported open-access publisher location; license=cc-by",
+    "open_access": true,
+    "version": "publishedVersion",
+    "license": "cc-by",
+    "artifact_format": "pdf",
+    "location_metadata": {
+      "reconciliation": "Prompt 3 route proof"
+    }
+  },
+  "max_bytes": 134217728,
+  "created_at": "2026-08-22T02:02:24.542214Z"
+}

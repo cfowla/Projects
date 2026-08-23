@@ -1,0 +1,27 @@
+{
+  "url": "https://unpaywall-simple-query-tool-c76bcdcacd9a.herokuapp.com/v2/dois",
+  "method": "POST",
+  "headers": {"Content-Type": "application/json"},
+  "body": {"dois": [
+    "10.1089/dia.2018.0052",
+    "10.1111/dom.12307",
+    "10.1002/hpja.720",
+    "10.1097/MNM.0000000000000797",
+    "10.1016/j.clim.2016.07.017",
+    "10.1016/j.clim.2015.09.006",
+    "10.1136/bjophthalmol-2013-303429",
+    "10.1136/thoraxjnl-2016-208464",
+    "10.1111/anae.16414",
+    "10.1002/wnan.1943",
+    "10.1182/blood.2024025270",
+    "10.1016/S2468-2667(24)00106-3",
+    "10.1002/art.42770",
+    "10.1111/medu.15175",
+    "10.1080/08164622.2023.2267552"
+  ]},
+  "provenance": {
+    "product": "Unpaywall Simple Query Tool",
+    "purpose": "Prompt 4 pre-freeze cohort screening only; production Python will decide route policy after the cohort is frozen",
+    "screen_revision": 2
+  }
+}

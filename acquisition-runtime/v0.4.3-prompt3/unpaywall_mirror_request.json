@@ -1,0 +1,36 @@
+{
+  "schema_version": "2",
+  "request_id": "7e9004a2c42fff3cb7baf5f4",
+  "correlation_id": "c08dee3fbc93b2e6fa55c96c",
+  "url": "https://pmc-oa-opendata.s3.amazonaws.com/PMC6208164.1/PMC6208164.1.pdf",
+  "method": "GET",
+  "headers": {},
+  "timeout_seconds": 60,
+  "expected_media_type": "application/pdf",
+  "source_route": "unpaywall",
+  "provenance_context": {
+    "host_observation_request_id": "reconcile-unpaywall-raw-observation",
+    "host_evidence_source": "preserved Unpaywall raw observation sha256 0fcf6f1fa1f2960c81b312584c1fa1b1f77fed9dd7d92ee386d0abb9f38e340a",
+    "discovery_provenance": {
+      "method": "Unpaywall OA record plus lawful PMC OA distribution mirror",
+      "doi": "10.1089/dia.2018.0052",
+      "pmid": "30222367",
+      "pmcid": "PMC6208164",
+      "unpaywall_best_origin": "https://www.liebertpub.com/doi/pdf/10.1089/dia.2018.0052",
+      "unpaywall_license": "cc-by",
+      "unpaywall_is_oa": true,
+      "mirror_reason": "publisher origin transport blocked by Cloudflare; mirror used only for byte materialization"
+    },
+    "lawful_access_basis": "CC BY article; PMC Open Access distribution mirror for the exact article identified by Unpaywall",
+    "open_access": true,
+    "version": "publishedVersion",
+    "license": "cc-by",
+    "artifact_format": "pdf",
+    "location_metadata": {
+      "reconciliation": "Prompt 3 Unpaywall route proof",
+      "transport_origin_class": "lawful_mirror"
+    }
+  },
+  "max_bytes": 134217728,
+  "created_at": "2026-08-22T02:05:33.909564Z"
+}

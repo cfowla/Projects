@@ -1,0 +1,32 @@
+{
+  "schema_version": "2",
+  "request_id": "5f978ae31f5e9d92f7184a57",
+  "correlation_id": "ac5e7755c82eb75cfde7f61a",
+  "url": "https://escholarship.org/content/qt7cg9s3gz/qt7cg9s3gz.pdf",
+  "method": "GET",
+  "headers": {},
+  "timeout_seconds": 60,
+  "expected_media_type": "application/pdf",
+  "source_route": "repository",
+  "provenance_context": {
+    "host_observation_request_id": "reconcile-repository-uc-escholarship",
+    "host_evidence_source": "https://escholarship.org/uc/item/7cg9s3gz",
+    "discovery_provenance": {
+      "method": "UC eScholarship institutional repository direct PDF",
+      "repository": "UC eScholarship",
+      "item": "7cg9s3gz",
+      "doi": "10.1007/s00520-019-04834-w",
+      "pmid": "31161437"
+    },
+    "lawful_access_basis": "UC eScholarship institutional repository publicly serves the scholarly full text",
+    "open_access": true,
+    "version": "acceptedVersion",
+    "license": null,
+    "artifact_format": "pdf",
+    "location_metadata": {
+      "reconciliation": "Prompt 3 route proof"
+    }
+  },
+  "max_bytes": 134217728,
+  "created_at": "2026-08-22T02:02:24.541867Z"
+}
