@@ -1,0 +1,10 @@
+{
+  "url": "https://unpaywall-simple-query-tool-c76bcdcacd9a.herokuapp.com/v2/dois",
+  "method": "POST",
+  "headers": {"Content-Type": "application/json"},
+  "body": {"dois": ["10.1089/dia.2018.0052", "10.1111/dom.12307"]},
+  "provenance": {
+    "product": "Unpaywall Simple Query Tool",
+    "purpose": "Prompt 3 raw host observation only; Python decides OA-location policy and terminal state"
+  }
+}
