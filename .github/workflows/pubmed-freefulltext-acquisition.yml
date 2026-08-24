@@ -1,0 +1,29 @@
+name: PubMed free-full-text acquisition host evidence
+
+on:
+  push:
+    branches:
+      - acquisition-pubmed-freefulltext-20260823
+  workflow_dispatch:
+
+jobs:
+  discover-host-evidence:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install host dependencies
+        run: python -m pip install --quiet requests
+      - name: Collect factual host observations
+        run: python acquisition-runtime/pubmed-freefulltext-20260823/discover_host_evidence.py
+      - name: Preserve host evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pubmed-freefulltext-host-evidence
+          retention-days: 30
+          if-no-files-found: error
+          path: |
+            acquisition-runtime/pubmed-freefulltext-20260823/pmids.txt
+            acquisition-runtime/pubmed-freefulltext-20260823/host_evidence*.json
