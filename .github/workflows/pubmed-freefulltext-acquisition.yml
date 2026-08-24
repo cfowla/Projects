@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - acquisition-pubmed-freefulltext-20260823
+  pull_request:
+    branches:
+      - master
   workflow_dispatch:
 
 jobs:
