@@ -1,0 +1,54 @@
+name: Validate and deploy antimicrobial simulator
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - 'antimicrobial-simulator/**'
+      - '.github/workflows/antimicrobial-simulator.yml'
+  push:
+    branches: [master]
+    paths:
+      - 'antimicrobial-simulator/**'
+      - '.github/workflows/antimicrobial-simulator.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: antimicrobial-simulator-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: antimicrobial-simulator
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: antimicrobial-simulator/package-lock.json
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+      - uses: actions/configure-pages@v5
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/master'
+      - uses: actions/upload-pages-artifact@v3
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/master'
+        with:
+          path: antimicrobial-simulator/dist
+  deploy:
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/master'
+    needs: build
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
